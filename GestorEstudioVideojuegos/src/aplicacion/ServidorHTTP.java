@@ -124,7 +124,18 @@ public class ServidorHTTP {
                 String genero = params.get("genero");
                 int anio = Integer.parseInt(params.get("anio"));
                 double calificacion = Double.parseDouble(params.get("calificacion"));
-
+                if (anio < 0) {
+                    mensaje = "❌ El año no puede ser negativo (recibido: " + anio + ")";
+                    tipo = "error";
+                    redirectConMensaje(exchange, "/", mensaje, tipo);
+                    return;
+                }
+                if (calificacion < 1.0 || calificacion > 10.0) {
+                    mensaje = "❌ La calificación debe estar entre 1.0 y 10.0 (recibido: " + calificacion + ")";
+                    tipo = "error";
+                    redirectConMensaje(exchange, "/", mensaje, tipo);
+                    return;
+                }
                 Videojuego nuevo = new Videojuego(codigo, titulo, genero, anio, calificacion);
                 boolean success = catalogo.registrarVideojuego(nuevo);
 
@@ -206,7 +217,18 @@ public class ServidorHTTP {
                 String genero = params.get("genero");
                 int anio = Integer.parseInt(params.get("anio"));
                 double calificacion = Double.parseDouble(params.get("calificacion"));
-
+                if (anio < 0) {
+                    redirectConMensaje(exchange, "/",
+                            "❌ El año no puede ser negativo (recibido: " + anio + ")",
+                            "error");
+                    return;
+                }
+                if (calificacion < 1.0 || calificacion > 10.0) {
+                    redirectConMensaje(exchange, "/",
+                            "❌ La calificación debe estar entre 1.0 y 10.0 (recibido: " + calificacion + ")",
+                            "error");
+                    return;
+                }
                 boolean success = catalogo.modificarVideojuego(codigo, titulo, genero, anio, calificacion);
 
                 if (success) {
@@ -515,7 +537,6 @@ public class ServidorHTTP {
     private static String generarHTMLConResultado(String contenidoResultado) {
         return generarHTMLCompleto(contenidoResultado, "", "");
     }
-
     private static String generarHTMLCompleto(String resultado, String mensaje, String tipo) {
         StringBuilder html = new StringBuilder();
         html.append("<!DOCTYPE html>\n");
@@ -552,7 +573,44 @@ public class ServidorHTTP {
             html.append("        </div>\n");
         }
 
-        // Contenido principal
+        // ============================================================
+        // ← NUEVO: TABLA DEL CATÁLOGO EN LA PARTE SUPERIOR
+        // ============================================================
+        html.append("        <div class='panel catalogo-principal'>\n");
+        html.append("            <h2>📋 Catálogo de Videojuegos</h2>\n");
+        html.append("            <div class='table-container'>\n");
+        html.append("                <table>\n");
+        html.append("                    <thead>\n");
+        html.append("                        <tr><th>Código</th><th>Título</th><th>Género</th><th>Año</th><th>Calificación</th></tr>\n");
+        html.append("                    </thead>\n");
+        html.append("                    <tbody>\n");
+
+        // Obtener la lista de videojuegos del catálogo
+        List<Videojuego> videojuegos = catalogo.listarInorden();
+        if (videojuegos.isEmpty()) {
+            html.append("                        <tr><td colspan='5' style='text-align:center;'>No hay videojuegos registrados</td></tr>\n");
+        } else {
+            for (Videojuego v : videojuegos) {
+                html.append("                            <tr>\n");
+                html.append("                                <td>").append(v.getCodigo()).append("</td>\n");
+                html.append("                                <td>").append(v.getTitulo()).append("</td>\n");
+                html.append("                                <td>").append(v.getGenero()).append("</td>\n");
+                html.append("                                <td>").append(v.getAnio()).append("</td>\n");
+                html.append("                                <td>").append(String.format("%.1f", v.getCalificacion())).append("</td>\n");
+                html.append("                            </tr>\n");
+            }
+        }
+
+        html.append("                    </tbody>\n");
+        html.append("                </table>\n");
+        html.append("            </div>\n");
+        html.append("            <div class='catalogo-info'>\n");
+        html.append("                <span>📊 Total: ").append(catalogo.cantidadVideojuegos()).append(" videojuegos</span>\n");
+        html.append("            </div>\n");
+        html.append("        </div>\n");
+        // ============================================================
+
+        // Contenido principal (paneles de gestión)
         html.append("        <div class='main-content'>\n");
 
         // Panel de Gestión
@@ -576,8 +634,8 @@ public class ServidorHTTP {
         html.append("                        <input type='number' name='anio' required>\n");
         html.append("                    </div>\n");
         html.append("                    <div class='form-group'>\n");
-        html.append("                        <label>Calificación (0-10):</label>\n");
-        html.append("                        <input type='number' step='0.1' name='calificacion' required>\n");
+        html.append("                        <label>Calificación (1-10):</label>\n");
+        html.append("                        <input type='number' step='0.1' name='calificacion' min='1' max='10' required>\n");
         html.append("                    </div>\n");
         html.append("                    <div class='form-group full-width'>\n");
         html.append("                        <button type='submit' class='btn btn-success'>➕ Registrar</button>\n");
@@ -611,8 +669,8 @@ public class ServidorHTTP {
         html.append("                        <input type='number' name='anio' required>\n");
         html.append("                    </div>\n");
         html.append("                    <div class='form-group'>\n");
-        html.append("                        <label>Nueva Calificación:</label>\n");
-        html.append("                        <input type='number' step='0.1' name='calificacion' required>\n");
+        html.append("                        <label>Nueva Calificación (1-10):</label>\n");
+        html.append("                        <input type='number' step='0.1' name='calificacion' min='1' max='10' required>\n");
         html.append("                    </div>\n");
         html.append("                    <div class='form-group full-width'>\n");
         html.append("                        <button type='submit' class='btn btn-warning'>✏️ Modificar</button>\n");
@@ -725,28 +783,8 @@ public class ServidorHTTP {
         html.append("                </div>\n");
         html.append("            </div>\n");
 
-        // Tabla de videojuegos
-        html.append("            <div class='panel'>\n");
-        html.append("                <h2>📋 Catálogo de Videojuegos</h2>\n");
-        html.append("                <div class='table-container'>\n");
-        html.append("                    <table>\n");
-        html.append("                        <thead>\n");
-        html.append("                            <tr><th>Código</th><th>Título</th><th>Género</th><th>Año</th><th>Calificación</th></tr>\n");
-        html.append("                        </thead>\n");
-        html.append("                        <tbody>\n");
-        for (Videojuego v : catalogo.listarInorden()) {
-            html.append("                            <tr>\n");
-            html.append("                                <td>").append(v.getCodigo()).append("</td>\n");
-            html.append("                                <td>").append(v.getTitulo()).append("</td>\n");
-            html.append("                                <td>").append(v.getGenero()).append("</td>\n");
-            html.append("                                <td>").append(v.getAnio()).append("</td>\n");
-            html.append("                                <td>").append(String.format("%.1f", v.getCalificacion())).append("</td>\n");
-            html.append("                            </tr>\n");
-        }
-        html.append("                        </tbody>\n");
-        html.append("                    </table>\n");
-        html.append("                </div>\n");
-        html.append("            </div>\n");
+        // La tabla del catálogo ya no va aquí abajo, se movió arriba
+        // Así que eliminamos la sección que estaba antes
 
         html.append("        </div>\n");
 

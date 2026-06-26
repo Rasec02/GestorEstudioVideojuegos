@@ -44,10 +44,19 @@ public class Videojuego {
     }
 
     public void setAnio(int anio) {
+        if (anio < 0) {
+            throw new IllegalArgumentException(
+                    "El año no puede ser negativo (recibido: " + anio + ")"
+            );
+        }
         this.anio = anio;
     }
-
     public void setCalificacion(double calificacion) {
+        if (calificacion < 1.0 || calificacion > 10.0) {
+            throw new IllegalArgumentException(
+                    "La calificación debe estar entre 1.0 y 10.0 (recibido: " + calificacion + ")"
+            );
+        }
         this.calificacion = calificacion;
     }
 
